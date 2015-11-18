@@ -112,6 +112,7 @@ func runWrapper(cf func(cmd *cobra.Command, args []string) (exit int)) func(cmd 
 }
 
 func main() {
+	fmt.Printf("\r\n ###################### rkt.go main 0\r\n")
 	// check if rkt is executed with a multicall command
 	multicall.MaybeExec()
 
@@ -120,7 +121,9 @@ func main() {
 	// Make help just show the usage
 	cmdRkt.SetHelpTemplate(`{{.UsageString}}`)
 
+	fmt.Printf("\r\n ###################### rkt.go main 1\r\n")
 	cmdRkt.Execute()
+	fmt.Printf("\r\n ###################### rkt.go main 2\r\n")
 	os.Exit(cmdExitCode)
 }
 

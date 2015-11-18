@@ -132,11 +132,14 @@ type fetcher struct {
 // will be used as the signature file for verification, unless verification is
 // disabled. If f.withDeps is true also image dependencies are fetched.
 func (f *fetcher) fetchImage(img string, asc string) (string, error) {
+	fmt.Printf("\r\n ###################### images.go fetchImage 0, img:%v,asc:%v\r\n", img, asc)
 	hash, err := f.fetchSingleImage(img, asc)
 	if err != nil {
 		return "", err
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImage 1, hash:%v\r\n", hash)
 	if f.withDeps {
+		fmt.Printf("\r\n ###################### images.go fetchImage 2, f.withDeps:%v\r\n", f.withDeps)
 		err = f.fetchImageDeps(hash)
 		if err != nil {
 			return "", err
@@ -180,6 +183,7 @@ func (f *fetcher) addImageDeps(hash string, imgsl *list.List, seen map[string]st
 func (f *fetcher) fetchImageDeps(hash string) error {
 	imgsl := list.New()
 	seen := map[string]struct{}{}
+	fmt.Printf("\r\n ###################### images.go fetchImageDeps hash 0, hash:%v\r\n", hash)
 	f.addImageDeps(hash, imgsl, seen)
 	for el := imgsl.Front(); el != nil; el = el.Next() {
 		img := el.Value.(string)
@@ -213,7 +217,7 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("not a valid image reference (%s)", img)
 	}
-
+	fmt.Printf("\r\n ###################### images.go fetchSingleImage 0, u:%v\r\n", u)
 	// if img refers to a local file, ensure the scheme is file:// and make the url path absolute
 	_, err = os.Stat(u.Path)
 	if err == nil {
@@ -228,14 +232,17 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 
 	switch u.Scheme {
 	case "":
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 1, u:%v\r\n", u)
 		// check if os and arch are valid early
 		if app := newDiscoveryApp(img); app != nil {
 			if err := types.IsValidOSArch(app.Labels, stage0.ValidOSArch); err != nil {
 				return "", err
 			}
 		}
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 2, ascFile:%v\r\n", ascFile)
 		return f.fetchImageByName(img, ascFile)
 	case "http", "https", "file", "docker":
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 3, u:%v, ascFile:%v\r\n", u, ascFile)
 		return f.fetchImageByURL(u, ascFile)
 	}
 
@@ -818,10 +825,14 @@ func newDiscoveryApp(img string) *discovery.App {
 	if err != nil {
 		return nil
 	}
+	fmt.Printf("\r\n ###################### images.go newDiscoveryApp 0, app:%v, app.Name.String():%v\r\n", app, app.Name.String())
+
 	u, err := url.Parse(app.Name.String())
 	if err != nil || u.Scheme != "" {
 		return nil
 	}
+	fmt.Printf("\r\n ###################### images.go newDiscoveryApp 1, u:%v\r\n", u)
+
 	if _, ok := app.Labels["arch"]; !ok {
 		app.Labels["arch"] = defaultArch
 	}

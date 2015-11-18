@@ -96,6 +96,8 @@ func init() {
 }
 
 func runRun(cmd *cobra.Command, args []string) (exit int) {
+	fmt.Printf("\r\n ###################### runRun 0\r\n")
+
 	privateUsers := uid.NewBlankUidRange()
 	err := parseApps(&rktApps, args, cmd.Flags(), true)
 	if err != nil {

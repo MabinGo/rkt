@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/coreos/rkt/Godeps/_workspace/src/github.com/appc/spec/schema/types"
@@ -50,6 +51,7 @@ func init() {
 }
 
 func runFetch(cmd *cobra.Command, args []string) (exit int) {
+	fmt.Printf("\r\n ###################### runFetch 0\r\n")
 	if err := parseApps(&rktApps, args, cmd.Flags(), false); err != nil {
 		stderr("fetch: unable to parse arguments: %v", err)
 		return 1
