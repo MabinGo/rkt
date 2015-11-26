@@ -71,11 +71,13 @@ type finder struct {
 // findImages uses findImage to attain a list of image hashes
 func (f *finder) findImages(al *apps.Apps) error {
 	return al.Walk(func(app *apps.App) error {
+		fmt.Printf("\r\n ###################### images.go findImages 0, app.Image:%v, app.Asc:%v\r\n", app.Image, app.Asc)
 		h, err := f.findImage(app.Image, app.Asc)
 		if err != nil {
 			return err
 		}
 		app.ImageID = *h
+		fmt.Printf("\r\n ###################### images.go findImages 1, app.ImageID:%v\r\n", app.ImageID)
 		return nil
 	})
 }
@@ -83,10 +85,12 @@ func (f *finder) findImages(al *apps.Apps) error {
 // findImage will recognize a ACI hash and use that or will fetch using the
 // provided img (image name string, local file, URL).
 func (f *finder) findImage(img string, asc string) (*types.Hash, error) {
+	fmt.Printf("\r\n ###################### images.go findImage 0, img:%v\r\n", img)
 	// check if it is a valid hash, if so let it pass through
 	h, err := types.NewHash(img)
 	if err == nil {
 		fullKey, err := f.s.ResolveKey(img)
+		fmt.Printf("\r\n ###################### images.go findImage 1, fullKey:%v\r\n", fullKey)
 		if err != nil {
 			return nil, fmt.Errorf("could not resolve image ID: %v", err)
 		}
@@ -106,10 +110,12 @@ func (f *finder) findImage(img string, asc string) (*types.Hash, error) {
 		withDeps:        f.withDeps,
 	}
 	key, err := ft.fetchImage(img, asc)
+	fmt.Printf("\r\n ###################### images.go findImage 2, key:%v\r\n", key)
 	if err != nil {
 		return nil, err
 	}
 	h, err = types.NewHash(key)
+	fmt.Printf("\r\n ###################### images.go findImage 3, h:%v\r\n", h)
 	if err != nil {
 		// should never happen
 		panic(err)
@@ -132,11 +138,14 @@ type fetcher struct {
 // will be used as the signature file for verification, unless verification is
 // disabled. If f.withDeps is true also image dependencies are fetched.
 func (f *fetcher) fetchImage(img string, asc string) (string, error) {
+	fmt.Printf("\r\n ###################### images.go fetchImage 0, img:%v,asc:%v\r\n", img, asc)
 	hash, err := f.fetchSingleImage(img, asc)
 	if err != nil {
 		return "", err
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImage 1, hash:%v\r\n", hash)
 	if f.withDeps {
+		fmt.Printf("\r\n ###################### images.go fetchImage 2, f.withDeps:%v\r\n", f.withDeps)
 		err = f.fetchImageDeps(hash)
 		if err != nil {
 			return "", err
@@ -180,6 +189,7 @@ func (f *fetcher) addImageDeps(hash string, imgsl *list.List, seen map[string]st
 func (f *fetcher) fetchImageDeps(hash string) error {
 	imgsl := list.New()
 	seen := map[string]struct{}{}
+	fmt.Printf("\r\n ###################### images.go fetchImageDeps hash 0, hash:%v\r\n", hash)
 	f.addImageDeps(hash, imgsl, seen)
 	for el := imgsl.Front(); el != nil; el = el.Next() {
 		img := el.Value.(string)
@@ -201,6 +211,7 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 		ascFile *os.File
 		err     error
 	)
+	fmt.Printf("\r\n ###################### images.go fetchSingleImage -1, asc:%v,f.ks:%v\r\n", asc, f.ks)
 	if asc != "" && f.ks != nil {
 		ascFile, err = os.Open(asc)
 		if err != nil {
@@ -213,7 +224,7 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("not a valid image reference (%s)", img)
 	}
-
+	fmt.Printf("\r\n ###################### images.go fetchSingleImage 0, u:%v\r\n", u)
 	// if img refers to a local file, ensure the scheme is file:// and make the url path absolute
 	_, err = os.Stat(u.Path)
 	if err == nil {
@@ -228,14 +239,17 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 
 	switch u.Scheme {
 	case "":
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 1, u:%v\r\n", u)
 		// check if os and arch are valid early
 		if app := newDiscoveryApp(img); app != nil {
 			if err := types.IsValidOSArch(app.Labels, stage0.ValidOSArch); err != nil {
 				return "", err
 			}
 		}
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 2, ascFile:%v\r\n", ascFile)
 		return f.fetchImageByName(img, ascFile)
 	case "http", "https", "file", "docker":
+		fmt.Printf("\r\n ###################### images.go fetchSingleImage 3, u:%v, ascFile:%v\r\n", u, ascFile)
 		return f.fetchImageByURL(u, ascFile)
 	}
 
@@ -245,16 +259,21 @@ func (f *fetcher) fetchSingleImage(img string, asc string) (string, error) {
 // fetchImageByName will try to fetch an image using an image name string.
 func (f *fetcher) fetchImageByName(img string, ascFile *os.File) (string, error) {
 	// check the store
+	fmt.Printf("\r\n ###################### images.go fetchImageByName 0, img:%v,ascFile:%v\r\n", img, ascFile)
 	if !f.noStore {
+		fmt.Printf("\r\n ###################### images.go fetchImageByName 1, img:%v,f.s:%v\r\n", img, f.s)
 		key, err := getStoreKeyFromApp(f.s, img)
 		if err == nil {
+			fmt.Printf("\r\n ###################### images.go fetchImageByName 2, img:%v,f.s:%v\r\n", img, f.s)
 			stderr("rkt: using image from local store for image name %s", img)
 			return key, nil
 		}
 		switch err.(type) {
 		// ignore the error if it's a store.ACINotFoundError
 		case store.ACINotFoundError:
+			fmt.Printf("\r\n ###################### images.go fetchImageByName 3, img:%v,f.s:%v\r\n", img, f.s)
 		default:
+			fmt.Printf("\r\n ###################### images.go fetchImageByName 4, img:%v,f.s:%v\r\n", img, f.s)
 			return "", err
 		}
 	}
@@ -262,13 +281,17 @@ func (f *fetcher) fetchImageByName(img string, ascFile *os.File) (string, error)
 	// do remote fetching
 	if !f.storeOnly {
 		// Do image discovery
+		fmt.Printf("\r\n ###################### images.go fetchImageByName 5, img:%v,f.s:%v\r\n", img, f.s)
 		app := newDiscoveryApp(img)
 		if app == nil {
 			return "", fmt.Errorf("invalid image name for discovery: %s", img)
 		}
+		fmt.Printf("\r\n ###################### images.go fetchImageByName 6, img:%v,app:%v\r\n", img, app)
 		stderr("rkt: searching for app image %s", img)
+		// mabinTag
 		ep, err := discoverApp(app, true)
 		if err != nil {
+			fmt.Printf("\r\n ###################### images.go fetchImageByName 7, img:%v,ep:%v\r\n", img, ep)
 			return "", fmt.Errorf("discovery failed for %q: %v", img, err)
 		}
 		latest := false
@@ -276,6 +299,8 @@ func (f *fetcher) fetchImageByName(img string, ascFile *os.File) (string, error)
 		if _, ok := app.Labels["version"]; !ok {
 			latest = true
 		}
+		fmt.Printf("\r\n ###################### images.go fetchImageByName 8, app.Name.String():%v,ep:%v,ascFile:%v\r\n",
+			app.Name.String(), ep, ascFile)
 		return f.fetchImageFromEndpoints(app.Name.String(), ep, ascFile, latest)
 	}
 
@@ -320,6 +345,7 @@ func (f *fetcher) fetchImageByURL(u *url.URL, ascFile *os.File) (string, error) 
 
 func (f *fetcher) fetchImageFromEndpoints(appName string, ep *discovery.Endpoints, ascFile *os.File, latest bool) (string, error) {
 	stderr("rkt: remote fetching from url %s", ep.ACIEndpoints[0].ACI)
+	fmt.Printf("\r\n ###################### images.go fetchImageFromEndpoints 0\r\n")
 	return f.fetchImageFrom(appName, ep.ACIEndpoints[0].ACI, ep.ACIEndpoints[0].ASC, "", ascFile, latest)
 }
 
@@ -329,6 +355,7 @@ func (f *fetcher) fetchImageFromURL(imgurl string, scheme string, ascFile *os.Fi
 
 // fetchImageFrom fetches an image from the aciURL.
 func (f *fetcher) fetchImageFrom(appName string, aciURL, ascURL, scheme string, ascFile *os.File, latest bool) (string, error) {
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 0\r\n")
 	var rem *store.Remote
 
 	if f.insecureSkipVerify && f.ks != nil {
@@ -359,11 +386,18 @@ func (f *fetcher) fetchImageFrom(appName string, aciURL, ascURL, scheme string, 
 	if rem != nil {
 		etag = rem.ETag
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 1,appName:%v,aciURL:%v,ascURL:%v,ascFile:%v,\r\n",
+		appName, aciURL, ascURL, ascFile)
+	// mabinTag
 	entity, aciFile, cd, err := f.fetch(appName, aciURL, ascURL, ascFile, etag)
 	if err != nil {
 		return "", err
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 2,entity:%v,ascFile:%v,cd:%v\r\n",
+		entity, ascFile, cd)
+
 	if cd != nil && cd.useCached {
+		fmt.Printf("\r\n ###################### images.go fetchImageFrom 3,cd:%v,\r\n", cd)
 		if rem != nil {
 			return rem.BlobKey, nil
 		} else {
@@ -376,17 +410,23 @@ func (f *fetcher) fetchImageFrom(appName string, aciURL, ascURL, scheme string, 
 	}
 
 	if entity != nil && !f.insecureSkipVerify {
+		fmt.Printf("\r\n ###################### images.go fetchImageFrom 4,entity:%v, !f.insecureSkipVerify:%v\r\n",
+			entity, !f.insecureSkipVerify)
 		stderr("rkt: signature verified:")
 		for _, v := range entity.Identities {
+			fmt.Printf("\r\n ###################### images.go fetchImageFrom 5, v:%v\r\n", v)
 			stderr("  %s", v.Name)
 		}
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 5.5, aciFile:%v, latest:%v\r\n", aciFile, latest)
 	key, err := f.s.WriteACI(aciFile, latest)
 	if err != nil {
 		return "", err
 	}
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 6, key:%v\r\n", key)
 
 	if scheme != "file" {
+		fmt.Printf("\r\n ###################### images.go fetchImageFrom 7, scheme:%v\r\n", scheme)
 		rem := store.NewRemote(aciURL, ascURL)
 		rem.BlobKey = key
 		rem.DownloadTime = time.Now()
@@ -394,12 +434,14 @@ func (f *fetcher) fetchImageFrom(appName string, aciURL, ascURL, scheme string, 
 			rem.ETag = cd.etag
 			rem.CacheMaxAge = cd.maxAge
 		}
+		fmt.Printf("\r\n ###################### images.go fetchImageFrom 8, rem:%v\r\n", rem)
 		err = f.s.WriteRemote(rem)
 		if err != nil {
 			return "", err
 		}
 	}
 
+	fmt.Printf("\r\n ###################### images.go fetchImageFrom 9, key:%v\r\n", key)
 	return key, nil
 }
 
@@ -419,7 +461,9 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error parsing ACI url: %v", err)
 	}
+	fmt.Printf("\r\n ###################### images.go fetch 0, u:%v,u.Scheme:%v\r\n", u, u.Scheme)
 	if u.Scheme == "docker" {
+		fmt.Printf("\r\n ###################### images.go fetch 1, u:%v,u.Scheme:%v\r\n", u, u.Scheme)
 		registryURL := strings.TrimPrefix(aciURL, "docker://")
 
 		storeTmpDir, err := f.s.TmpDir()
@@ -452,8 +496,12 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 		return nil, aciFile, nil, nil
 	}
 
+	fmt.Printf("\r\n ###################### images.go fetch 2\r\n")
 	// attempt to automatically fetch the public key in case it is available on a TLS connection.
 	if globalFlags.TrustKeysFromHttps && !globalFlags.InsecureSkipVerify && appName != "" && f.ks != nil {
+		fmt.Printf("\r\n ###################### images.go fetch 3, appName:%v,TrustKeysFromHttps:%v, InsecureSkipVerify:%v\r\n",
+			appName, globalFlags.TrustKeysFromHttps, globalFlags.InsecureSkipVerify)
+
 		m := &pubkey.Manager{
 			InsecureAllowHttp:  false,
 			TrustKeysFromHttps: true,
@@ -461,21 +509,26 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 			Debug:              globalFlags.Debug,
 		}
 		pkls, err := m.GetPubKeyLocations(appName)
+		fmt.Printf("\r\n ###################### images.go fetch 3.1, err:%v, appName:%v, pkls:%v \r\n", err, appName, pkls)
 		if err != nil {
 			stderr("Error determining key location: %v", err)
 		} else {
+			fmt.Printf("\r\n ###################### images.go fetch 3.2, appName:%v, pkls:%v \r\n", appName, pkls)
 			if err := m.AddKeys(pkls, appName, pubkey.AcceptForce, pubkey.OverrideDeny); err != nil {
 				stderr("Error adding keys: %v", err)
 			}
+			fmt.Printf("\r\n ###################### images.go fetch 3.3, pubkey.AcceptForce:%v, pubkey.OverrideDeny:%v \r\n",
+				pubkey.AcceptForce, pubkey.OverrideDeny)
 		}
 	}
-
+	fmt.Printf("\r\n ###################### images.go fetch 4\r\n")
 	var retrySignature bool
 	if f.ks != nil && ascFile == nil {
 		u, err := url.Parse(ascURL)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error parsing ASC url: %v", err)
 		}
+		fmt.Printf("\r\n ###################### images.go fetch 5, u:%v,u.Scheme:%v\r\n", u, u.Scheme)
 		if u.Scheme == "file" {
 			ascFile, err = os.Open(u.Path)
 			if err != nil {
@@ -503,20 +556,24 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 		defer ascFile.Close()
 	}
 
+	fmt.Printf("\r\n ###################### images.go fetch 6, retrySignature:%v\r\n", retrySignature)
+
 	// check if the identity used by the signature is in the store before a
 	// possibly expensive download. This is only an optimization and it's
 	// ok to skip the test if the signature will be downloaded later.
 	if !retrySignature && f.ks != nil && appName != "" {
+		fmt.Printf("\r\n ###################### images.go fetch 7,\r\n")
 		if _, err := ascFile.Seek(0, 0); err != nil {
 			return nil, nil, nil, fmt.Errorf("error seeking signature file: %v", err)
 		}
 		if entity, err = f.ks.CheckSignature(appName, bytes.NewReader([]byte{}), ascFile); err != nil {
+			fmt.Printf("\r\n ###################### images.go fetch 8,\r\n")
 			if _, ok := err.(pgperrors.SignatureError); !ok {
 				return nil, nil, nil, err
 			}
 		}
 	}
-
+	fmt.Printf("\r\n ###################### images.go fetch 9,u.Scheme:%v\r\n", u.Scheme)
 	var aciFile *os.File
 	if u.Scheme == "file" {
 		aciFile, err = os.Open(u.Path)
@@ -542,6 +599,7 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 		}
 	}
 
+	fmt.Printf("\r\n ###################### images.go fetch 10,retrySignature:%v, ascFile:%v\r\n", retrySignature, ascFile)
 	if retrySignature {
 		if err = f.downloadSignatureFile(ascURL, ascFile); err != nil {
 			return nil, aciFile, nil, fmt.Errorf("error downloading the signature file: %v", err)
@@ -568,6 +626,7 @@ func (f *fetcher) fetch(appName string, aciURL, ascURL string, ascFile *os.File,
 		if _, err := ascFile.Seek(0, 0); err != nil {
 			return nil, aciFile, nil, fmt.Errorf("error seeking signature file: %v", err)
 		}
+		fmt.Printf("\r\n ###################### images.go fetch 11,manifest.Name.String():%v, ascFile:%v\r\n", manifest.Name.String(), ascFile)
 		if entity, err = f.ks.CheckSignature(manifest.Name.String(), aciFile, ascFile); err != nil {
 			return nil, aciFile, nil, err
 		}
@@ -603,6 +662,7 @@ func (f *fetcher) downloadHTTP(url, label string, out writeSyncer, etag string) 
 	if err != nil {
 		return nil, err
 	}
+
 	transport := http.DefaultTransport
 	if f.insecureSkipVerify {
 		transport = &http.Transport{
@@ -697,11 +757,31 @@ func (f *fetcher) downloadHTTP(url, label string, out writeSyncer, etag string) 
 		}
 	}
 
+	fmt.Printf("\r\n ###################### images.go downloadHTTP -1, url: %v, label: %v\r\n", url, label)
+	fmt.Printf("\r\n ###################### images.go downloadHTTP 0, req: %v\r\n", req)
+	if false {
+		reqEx := *req
+		fmt.Printf("\r\n ###################### images.go downloadHTTP 1, reqEx.RequestURI: %v\r\n", reqEx.RequestURI)
+		resEx, err := client.Do(&reqEx)
+		if err != nil {
+			fmt.Printf("\r\n ###################### images.go downloadHTTP 1.5, url: %v, err: %v\r\n", url, err)
+			return nil, err
+		}
+		defer resEx.Body.Close()
+
+		data, _ := ioutil.ReadAll(resEx.Body)
+		_ = ioutil.WriteFile("/home/workspace/body-fetch", data, 0777)
+		//fmt.Printf("\r\n ###################### images.go downloadHTTP 2, data:\r\n%v\r\n\r\n", string(data))
+	}
+
 	res, err := client.Do(req)
 	if err != nil {
+		fmt.Printf("\r\n ###################### images.go downloadHTTP 2, err: %v\r\n", err)
 		return nil, err
 	}
 	defer res.Body.Close()
+	fmt.Printf("\r\n ###################### images.go downloadHTTP 3, res.Request.RequestURI:%v, res:%v, etag:%v\r\n",
+		res.Request.RequestURI, res, etag)
 
 	cd := &cacheData{}
 	// TODO(jonboulle): handle http more robustly (redirects?)
@@ -781,6 +861,7 @@ func (f *fetcher) downloadHTTP(url, label string, out writeSyncer, etag string) 
 		return nil, fmt.Errorf("error writing %s: %v", label, err)
 	}
 
+	fmt.Printf("\r\n ###################### images.go downloadHTTP 3, out:%v, \r\n", out)
 	os.Remove(etagFilePath)
 
 	return cd, nil
@@ -818,10 +899,14 @@ func newDiscoveryApp(img string) *discovery.App {
 	if err != nil {
 		return nil
 	}
+	fmt.Printf("\r\n ###################### images.go newDiscoveryApp 0, app:%v, app.Name.String():%v\r\n", app, app.Name.String())
+
 	u, err := url.Parse(app.Name.String())
 	if err != nil || u.Scheme != "" {
 		return nil
 	}
+	fmt.Printf("\r\n ###################### images.go newDiscoveryApp 1, u:%v\r\n", u)
+
 	if _, ok := app.Labels["arch"]; !ok {
 		app.Labels["arch"] = defaultArch
 	}
@@ -832,6 +917,7 @@ func newDiscoveryApp(img string) *discovery.App {
 }
 
 func discoverApp(app *discovery.App, insecure bool) (*discovery.Endpoints, error) {
+	fmt.Printf("\r\n ###################### images.go discoverApp 0, app:%v, insecure:%v\r\n", app, insecure)
 	ep, attempts, err := discovery.DiscoverEndpoints(*app, insecure)
 	if globalFlags.Debug {
 		for _, a := range attempts {
@@ -841,6 +927,7 @@ func discoverApp(app *discovery.App, insecure bool) (*discovery.Endpoints, error
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("\r\n ###################### images.go discoverApp 1, ep:%v\r\n", ep)
 	if len(ep.ACIEndpoints) == 0 {
 		return nil, fmt.Errorf("no endpoints discovered")
 	}

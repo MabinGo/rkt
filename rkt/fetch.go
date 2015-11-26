@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/coreos/rkt/Godeps/_workspace/src/github.com/appc/spec/schema/types"
@@ -91,11 +92,15 @@ func runFetch(cmd *cobra.Command, args []string) (exit int) {
 	}
 
 	err = rktApps.Walk(func(app *apps.App) error {
+		fmt.Printf("\r\n ###################### fetch.go runFetch 0, app.Image:%v, app.Asc:%v\r\n",
+			app.Image, app.Asc)
 		hash, err := ft.fetchImage(app.Image, app.Asc)
+		fmt.Printf("\r\n ###################### fetch.go runFetch 1, hash:%v\r\n", hash)
 		if err != nil {
 			return err
 		}
 		shortHash := types.ShortHash(hash)
+		fmt.Printf("\r\n ###################### fetch.go runFetch 2, shortHash:%v\r\n", shortHash)
 		stdout(shortHash)
 		return nil
 	})

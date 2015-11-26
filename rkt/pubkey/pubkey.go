@@ -57,6 +57,7 @@ func (m *Manager) GetPubKeyLocations(prefix string) ([]string, error) {
 	}
 
 	kls, err := m.metaDiscoverPubKeyLocations(prefix)
+	fmt.Printf("\r\n ###################### pubkey.go GetPubKeyLocations 0, prefix:%v, kls:%v \r\n", prefix, kls)
 	if err != nil {
 		return nil, fmt.Errorf("prefix meta discovery error: %v", err)
 	}
@@ -74,11 +75,15 @@ func (m *Manager) AddKeys(pkls []string, prefix string, accept AcceptOption, ove
 		return fmt.Errorf("no keystore available to add keys to")
 	}
 
+	fmt.Printf("\r\n ###################### pubkey.go AddKeys 0, pkls:%v, prefix:%v, accept:%v, override:%v \r\n",
+		pkls, prefix, accept, override)
 	for _, pkl := range pkls {
 		u, err := url.Parse(pkl)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\r\n ###################### pubkey.go AddKeys 1, pkl:%v, u:%v \r\n", pkl, u)
+
 		pk, err := m.getPubKey(u)
 		if err != nil {
 			return fmt.Errorf("error accessing the key %s: %v", pkl, err)
@@ -86,6 +91,7 @@ func (m *Manager) AddKeys(pkls []string, prefix string, accept AcceptOption, ove
 		defer pk.Close()
 
 		exists, err := m.Ks.TrustedKeyPrefixExists(prefix, pk)
+		fmt.Printf("\r\n ###################### pubkey.go AddKeys 3, exists:%v \r\n", exists)
 		if err != nil {
 			return fmt.Errorf("error reading the key %s: %v", pkl, err)
 		}
@@ -93,17 +99,22 @@ func (m *Manager) AddKeys(pkls []string, prefix string, accept AcceptOption, ove
 		if err != nil {
 			return fmt.Errorf("error displaying the key %s: %v", pkl, err)
 		}
+		fmt.Printf("\r\n ###################### pubkey.go AddKeys 4, override:%v, OverrideDeny:%v \r\n", override, OverrideDeny)
 		if exists && override == OverrideDeny {
 			stderr("Key %q already in the keystore", pkl)
 			continue
 		}
 
+		fmt.Printf("\r\n ###################### pubkey.go AddKeys 5, m.TrustKeysFromHttps:%v, u.Scheme:%v, AcceptForce:%v \r\n",
+			m.TrustKeysFromHttps, u.Scheme, AcceptForce)
 		if m.TrustKeysFromHttps && u.Scheme == "https" {
 			accept = AcceptForce
 		}
 
+		fmt.Printf("\r\n ###################### pubkey.go AddKeys 6, accept:%v, AcceptAsk:%v \r\n", accept, AcceptAsk)
 		if accept == AcceptAsk {
 			accepted, err := reviewKey()
+			fmt.Printf("\r\n ###################### pubkey.go AddKeys 7, accepted:%v \r\n", accepted)
 			if err != nil {
 				return fmt.Errorf("error reviewing key: %v", err)
 			}
@@ -132,6 +143,7 @@ func (m *Manager) AddKeys(pkls []string, prefix string, accept AcceptOption, ove
 			}
 			stderr("Added key for prefix %q at %q", prefix, path)
 		}
+
 	}
 	return nil
 }
@@ -165,11 +177,13 @@ func (m *Manager) getPubKey(u *url.URL) (*os.File, error) {
 	case "":
 		return os.Open(u.Path)
 	case "http":
+		fmt.Printf("\r\n ###################### pubkey.go getPubKey 0, m.InsecureAllowHttp:%v\r\n", m.InsecureAllowHttp)
 		if !m.InsecureAllowHttp {
 			return nil, fmt.Errorf("--insecure-allow-http required for http URLs")
 		}
 		fallthrough
 	case "https":
+		fmt.Printf("\r\n ###################### pubkey.go getPubKey 1,\r\n")
 		return downloadKey(u)
 	}
 
@@ -178,6 +192,7 @@ func (m *Manager) getPubKey(u *url.URL) (*os.File, error) {
 
 // downloadKey retrieves the file, storing it in a deleted tempfile
 func downloadKey(u *url.URL) (*os.File, error) {
+	fmt.Printf("\r\n ###################### pubkey.go downloadKey 0,\r\n")
 	tf, err := ioutil.TempFile("", "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating tempfile: %v", err)

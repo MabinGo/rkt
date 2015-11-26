@@ -17,6 +17,7 @@ package discovery
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -63,7 +64,9 @@ func httpsOrHTTP(name string, insecure bool) (urlStr string, body io.ReadCloser,
 		}
 		u.RawQuery = "ac-discovery=1"
 		urlStr = u.String()
+		fmt.Printf("\r\n ###################### http.go httpsOrHTTP 0, urlStr:%v\r\n", urlStr)
 		res, err = httpGet.Get(urlStr)
+		fmt.Printf("\r\n ###################### http.go httpsOrHTTP 1, err:%v, res:%v\r\n", err, res)
 		return
 	}
 	closeBody := func(res *http.Response) {
@@ -71,12 +74,37 @@ func httpsOrHTTP(name string, insecure bool) (urlStr string, body io.ReadCloser,
 			res.Body.Close()
 		}
 	}
+	/*
+		urlStr, res, err := fetch("https")
+		if err != nil || res.StatusCode != http.StatusOK {
+			if insecure {
+				closeBody(res)
+				urlStr, res, err = fetch("http")
+			}
+		}
+	*/
 	urlStr, res, err := fetch("https")
 	if err != nil || res.StatusCode != http.StatusOK {
+		fmt.Printf("\r\n ###################### http.go httpsOrHTTP 1.5, err:%v\r\n", err)
 		if insecure {
+			fmt.Printf("\r\n ###################### http.go httpsOrHTTP 1.8, insecure:%v\r\n", insecure)
 			closeBody(res)
 			urlStr, res, err = fetch("http")
 		}
+	}
+
+	if false {
+		urlStrEx, resEx, errEx := fetch("http")
+		if errEx != nil || resEx.StatusCode != http.StatusOK {
+			if insecure {
+				closeBody(resEx)
+				urlStrEx, resEx, errEx = fetch("http")
+			}
+		}
+		fmt.Printf("\r\n ###################### http.go httpsOrHTTP 2, urlStrEx:%v\r\n", urlStrEx)
+		data, _ := ioutil.ReadAll(resEx.Body)
+		_ = ioutil.WriteFile("/home/workspace/body-discovery", data, 0777)
+		//fmt.Printf("\r\n ###################### http.go httpsOrHTTP 3, data:\r\n%v\r\n\r\n", string(data))
 	}
 
 	if res != nil && res.StatusCode != http.StatusOK {

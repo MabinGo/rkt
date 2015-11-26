@@ -80,6 +80,7 @@ func (ks *Keystore) CheckSignature(prefix string, signed, signature io.ReadSeeke
 
 func checkSignature(ks *Keystore, prefix string, signed, signature io.ReadSeeker) (*openpgp.Entity, error) {
 	acidentifier, err := types.NewACIdentifier(prefix)
+	fmt.Printf("\r\n ###################### keystore.go checkSignature 0, acidentifier:%v \r\n", acidentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +88,8 @@ func checkSignature(ks *Keystore, prefix string, signed, signature io.ReadSeeker
 	if err != nil {
 		return nil, fmt.Errorf("keystore: error loading keyring %v", err)
 	}
+
+	fmt.Printf("\r\n ###################### keystore.go checkSignature 1, keyring:%v \r\n", keyring)
 	entities, err := openpgp.CheckArmoredDetachedSignature(keyring, signed, signature)
 	if err == io.EOF {
 		// When the signature is binary instead of armored, the error is io.EOF.
@@ -98,8 +101,10 @@ func checkSignature(ks *Keystore, prefix string, signed, signature io.ReadSeeker
 			return nil, fmt.Errorf("error seeking signature file: %v", err)
 		}
 		entities, err = openpgp.CheckDetachedSignature(keyring, signed, signature)
+		fmt.Printf("\r\n ###################### keystore.go checkSignature 2, entities:%v \r\n", entities)
 	}
 	if err == io.EOF {
+		fmt.Printf("\r\n ###################### keystore.go checkSignature 3, \r\n")
 		// otherwise, the client failure is just "EOF", which is not helpful
 		return nil, fmt.Errorf("keystore: no valid signatures found in signature file")
 	}
@@ -139,6 +144,7 @@ func (ks *Keystore) MaskTrustedKeySystemRoot(fingerprint string) (string, error)
 func (ks *Keystore) TrustedKeyPrefixExists(prefix string, r io.ReadSeeker) (bool, error) {
 	defer r.Seek(0, os.SEEK_SET)
 
+	fmt.Printf("\r\n ###################### keystore.go TrustedKeyPrefixExists 0, prefix:%v \r\n", prefix)
 	entityList, err := openpgp.ReadArmoredKeyRing(r)
 	if err != nil {
 		return false, err
@@ -148,6 +154,7 @@ func (ks *Keystore) TrustedKeyPrefixExists(prefix string, r io.ReadSeeker) (bool
 	}
 	pubKey := entityList[0].PrimaryKey
 	fileName := fingerprintToFilename(pubKey.Fingerprint)
+	fmt.Printf("\r\n ###################### keystore.go TrustedKeyPrefixExists 1, pubKey:%v, fileName:%v \r\n", pubKey, fileName)
 
 	pathNamesRoot := []string{
 		// example: /etc/rkt/trustedkeys/root.d/8b86de38890ddb7291867b025210bd8888182190
@@ -159,6 +166,8 @@ func (ks *Keystore) TrustedKeyPrefixExists(prefix string, r io.ReadSeeker) (bool
 	var pathNamesPrefix []string
 	if prefix != "" {
 		acidentifier, err := types.NewACIdentifier(prefix)
+		fmt.Printf("\r\n ###################### keystore.go TrustedKeyPrefixExists 2, acidentifier:%v ,acidentifier.String():%v \r\n",
+			acidentifier, acidentifier.String())
 		if err != nil {
 			return false, err
 		}
@@ -171,6 +180,7 @@ func (ks *Keystore) TrustedKeyPrefixExists(prefix string, r io.ReadSeeker) (bool
 	}
 
 	pathNames := append(pathNamesRoot, pathNamesPrefix...)
+	fmt.Printf("\r\n ###################### keystore.go TrustedKeyPrefixExists 3, pathNames:%v \r\n", pathNames)
 	for _, p := range pathNames {
 		_, err := os.Stat(p)
 		if err == nil {
@@ -261,6 +271,7 @@ func (ks *Keystore) loadKeyring(prefix string) (openpgp.KeyRing, error) {
 	}
 	for _, p := range paths {
 		err := filepath.Walk(p.root, func(path string, info os.FileInfo, err error) error {
+			fmt.Printf("\r\n ##### keystore.go loadKeyring 0, p:%v, path:%v \r\n", p, path)
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
@@ -284,6 +295,8 @@ func (ks *Keystore) loadKeyring(prefix string) (openpgp.KeyRing, error) {
 			if err != nil {
 				return err
 			}
+			fmt.Printf("\r\n ##### keystore.go loadKeyring 1, Fingerprint:%v, entity:%v \r\n", entity.PrimaryKey.Fingerprint, entity)
+			fmt.Printf("\r\n ##### keystore.go loadKeyring 1, index:%v \r\n", fingerprintToFilename(entity.PrimaryKey.Fingerprint))
 			trustedKeys[fingerprintToFilename(entity.PrimaryKey.Fingerprint)] = entity
 			return nil
 		})
@@ -293,8 +306,10 @@ func (ks *Keystore) loadKeyring(prefix string) (openpgp.KeyRing, error) {
 	}
 
 	for _, v := range trustedKeys {
+		fmt.Printf("\r\n ###################### keystore.go loadKeyring 2, *v:%v \r\n", *v)
 		keyring = append(keyring, v)
 	}
+	//fmt.Printf("\r\n ###################### keystore.go loadKeyring 3, keyring:%v \r\n", keyring)
 	return keyring, nil
 }
 

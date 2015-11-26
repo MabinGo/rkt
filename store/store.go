@@ -371,6 +371,7 @@ func (s *Store) WriteACI(r io.ReadSeeker, latest bool) (string, error) {
 
 	// Import the uncompressed image into the store at the real key
 	key := s.HashToKey(h)
+	fmt.Printf("\r\n ###################### store.go WriteACI 0, key:%v\r\n", key)
 	keyLock, err := lock.ExclusiveKeyLock(s.imageLockDir, key)
 	if err != nil {
 		return "", fmt.Errorf("error locking image: %v", err)
@@ -407,7 +408,7 @@ func (s *Store) WriteACI(r io.ReadSeeker, latest bool) (string, error) {
 	// The treestore for this ACI is not written here as ACIs downloaded as
 	// dependencies of another ACI will be exploded also if never directly used.
 	// Users of treestore should call s.RenderTreeStore before using it.
-
+	fmt.Printf("\r\n ###################### store.go WriteACI 1, key:%v\r\n", key)
 	return key, nil
 }
 

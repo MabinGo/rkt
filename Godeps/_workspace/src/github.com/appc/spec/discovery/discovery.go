@@ -129,15 +129,18 @@ func doDiscover(pre string, app App, insecure bool) (*Endpoints, error) {
 		app.Labels["version"] = defaultVersion
 	}
 
+	fmt.Printf("\r\n ###################### discovery.go doDiscover 0, app:%v\r\n", app)
 	_, body, err := httpsOrHTTP(pre, insecure)
 	if err != nil {
+		fmt.Printf("\r\n ###################### discovery.go doDiscover 1, app:%v\r\n", app)
 		return nil, err
 	}
 	defer body.Close()
 
 	meta := extractACMeta(body)
-
+	fmt.Printf("\r\n ###################### discovery.go doDiscover 2, meta:%v\r\n", meta)
 	tplVars := createTemplateVars(app)
+	fmt.Printf("\r\n ###################### discovery.go doDiscover 3, tplVars:%v\r\n", tplVars)
 
 	de := &Endpoints{}
 
@@ -164,6 +167,7 @@ func doDiscover(pre string, app App, insecure bool) (*Endpoints, error) {
 			de.Keys = append(de.Keys, m.uri)
 		}
 	}
+	fmt.Printf("\r\n ###################### discovery.go doDiscover 4, de:%v\r\n", de)
 
 	return de, nil
 }
@@ -180,12 +184,17 @@ func DiscoverWalk(app App, insecure bool, discoverFn DiscoverWalkFunc) (err erro
 	for i := range parts {
 		end := len(parts) - i
 		pre := strings.Join(parts[:end], "/")
-
+		fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 0, parts[:end]:%v\r\n", parts[:end])
+		fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 1, pre:%v\r\n", pre)
 		eps, err = doDiscover(pre, app, insecure)
+		fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 2, eps:%v, err:%v\r\n", eps, err)
 		if derr := discoverFn(pre, eps, err); derr != nil {
+			fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 3, derr:%v\r\n", derr)
 			return derr
 		}
+		fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 4")
 	}
+	fmt.Printf("\r\n ###################### discovery.go DiscoverWalk 5,\r\n")
 
 	return
 }
@@ -218,6 +227,7 @@ func walker(out *Endpoints, attempts *[]FailedAttempt, testFn DiscoverWalkFunc) 
 // tags and optionally will use HTTP if insecure is set. It will not give up
 // until it has exhausted the path or found an image discovery.
 func DiscoverEndpoints(app App, insecure bool) (out *Endpoints, attempts []FailedAttempt, err error) {
+	fmt.Printf("\r\n ###################### discovery.go DiscoverEndpoints 0,\r\n")
 	out = &Endpoints{}
 	testFn := func(pre string, eps *Endpoints, err error) error {
 		if len(out.ACIEndpoints) != 0 {
@@ -238,6 +248,7 @@ func DiscoverEndpoints(app App, insecure bool) (out *Endpoints, attempts []Faile
 // tags and optionally will use HTTP if insecure is set. It will not give up
 // until it has exhausted the path or found an public key.
 func DiscoverPublicKeys(app App, insecure bool) (out *Endpoints, attempts []FailedAttempt, err error) {
+	fmt.Printf("\r\n ###################### discovery.go DiscoverPublicKeys 0,\r\n")
 	out = &Endpoints{}
 	testFn := func(pre string, eps *Endpoints, err error) error {
 		if len(out.Keys) != 0 {
